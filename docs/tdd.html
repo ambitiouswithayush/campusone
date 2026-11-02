@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CampusOne — Technical Design Document</title>
+<style>
+  @page { size: A4; margin: 18mm 17mm 18mm 17mm; }
+  :root { --ink:#1c1b19; --ink2:#57534e; --ink3:#8a857d; --line:#e7e5e0; --accent:#0f6b66; --soft:#e6f2f1; --warn:#a15c07; --wsoft:#fdf3e2; }
+  * { box-sizing: border-box; }
+  body { font-family: "Inter", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; color: var(--ink); font-size: 10.2pt; line-height: 1.5; margin: 0; }
+  h1 { font-size: 24pt; letter-spacing: -0.02em; margin: 0 0 4pt; }
+  h2 { font-size: 14pt; margin: 22pt 0 6pt; padding-top: 6pt; border-top: 1px solid var(--line); letter-spacing: -0.01em; break-after: avoid; }
+  h3 { font-size: 11pt; margin: 14pt 0 4pt; break-after: avoid; }
+  p { margin: 0 0 7pt; }
+  ul, ol { margin: 0 0 8pt; padding-left: 16pt; }
+  li { margin-bottom: 2.5pt; }
+  code { font-family: ui-monospace, Menlo, monospace; font-size: 8.8pt; background: #f4f3f0; padding: 0.5pt 3pt; border-radius: 3pt; }
+  table { width: 100%; border-collapse: collapse; margin: 4pt 0 10pt; font-size: 9pt; } tr { break-inside: avoid; }
+  th { text-align: left; color: var(--ink3); font-weight: 600; font-size: 7.8pt; text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--line); padding: 4pt 6pt; }
+  td { border-bottom: 1px solid var(--line); padding: 4.5pt 6pt; vertical-align: top; }
+  .meta { border: 1px solid var(--line); border-radius: 8pt; padding: 10pt 12pt; margin: 12pt 0 6pt; font-size: 9.6pt; }
+  .meta div { display: flex; gap: 10pt; margin: 2pt 0; }
+  .meta b { width: 92pt; flex-shrink: 0; color: var(--ink2); font-weight: 600; }
+  .meta a { color: var(--accent); text-decoration: none; }
+  .sub { color: var(--ink2); font-size: 11pt; margin-bottom: 0; }
+  .callout { background: var(--soft); border-radius: 6pt; padding: 8pt 11pt; margin: 6pt 0 10pt; break-inside: avoid; }
+  .assume { background: var(--wsoft); border-radius: 6pt; padding: 8pt 11pt; margin: 6pt 0 10pt; }
+  .tag { display: inline-block; font-size: 7.5pt; font-weight: 700; color: var(--warn); background: var(--wsoft); border-radius: 3pt; padding: 0 3pt; margin-right: 2pt; }
+  .shots { display: flex; gap: 10pt; align-items: flex-start; margin: 6pt 0 4pt; break-inside: avoid; }
+  .shots figure { margin: 0; flex: 1; }
+  .shots img { width: 100%; border: 1px solid var(--line); border-radius: 6pt; display: block; }
+  .shots.phone figure { flex: 0 0 31%; }
+  .shots.wide { display: block; }
+  .shots.wide figure { margin: 0 0 10pt; break-inside: avoid; }
+  figcaption { font-size: 8.2pt; color: var(--ink3); margin-top: 3pt; }
+  .flow { font-family: ui-monospace, Menlo, monospace; font-size: 8.3pt; background: #f7f7f5; border: 1px solid var(--line); border-radius: 6pt; padding: 8pt 10pt; white-space: pre; line-height: 1.45; margin: 4pt 0 10pt; break-inside: avoid; }
+  .two { display: flex; gap: 14pt; } .two > div { flex: 1; }
+  .pb { break-before: page; }
+  .small { font-size: 8.8pt; color: var(--ink2); }
+</style>
+</head>
+<body>
+
+<p class="small" style="margin-bottom:10pt">Technical Design Document · Phase 1 · Prepared for the Secretary, Company A Educational Trust, Bhubaneswar</p>
+<h1>CampusOne</h1>
+<p class="sub">One record per student: attendance, internal marks and fees for a multi-campus college ERP</p>
+
+<div class="meta">
+  <div><b>GitHub</b><a href="https://github.com/ambitiouswithayush/campusone">https://github.com/ambitiouswithayush/campusone</a></div>
+  <div><b>Live app</b><span>Not deployed at the time of writing. The repository is ready for Vercel + managed Postgres (see deployment.md). The full demo runs locally in about two minutes with no database install.</span></div>
+  <div><b>Demo logins</b><span>Faculty <code>priya.das@campusone.test</code> · Office admin <code>admin@campusone.test</code> · password <code>Demo@2026</code></span></div>
+  <div><b>Stack</b><span>Next.js 15 · TypeScript · Postgres (Drizzle ORM; PGlite locally) · Tailwind CSS 4 · Service worker + IndexedDB · Vitest</span></div>
+</div>
+
+<h2>1. What was built</h2>
+<p>This is the <b>core build slice</b>, working end to end for <b>one campus</b> (the Engineering College) with two roles, <b>faculty</b> and <b>office admin</b>. It runs on realistic seed data built around the three sample students in the brief.</p>
+<table>
+  <tr><th style="width:28%">Brief requirement</th><th>What works</th></tr>
+  <tr><td>Masters for one programme</td><td>Campuses, departments, programmes, batches (intake + section), subjects with the 40-mark internal scheme, faculty, teaching assignments, weekly timetable and academic calendar. Subjects, faculty, teacher reassignment and calendar entries are editable; every change is audited.</td></tr>
+  <tr><td>Mobile attendance, offline in class</td><td>A class pack (rosters and timetable) is cached on the phone. Every student starts as present and the teacher taps only the absentees. Every tap is saved to the phone; submissions queue in an outbox and sync when signal returns. Retries are idempotent, conflicts are resolved by rule, and the server enforces a 48-hour edit window.</td></tr>
+  <tr><td>Alerts below 75%</td><td>After each sync and nightly, an automated shortage alert goes to the parent (a mocked SMS, in English or Odia). It is de-duplicated to one per student per week and held back when parental consent is missing.</td></tr>
+  <tr><td>Internal marks with moderation lock</td><td>A grid with inline validation and keyboard entry. The workflow is draft → submitted → moderated → locked; unlocking needs a written reason. Every change is logged, and locked sheets export in the university upload format.</td></tr>
+  <tr><td>Fee dues</td><td>Fee structures by programme and category, scholarships, dues ledger, bank-counter receipts, test-mode payment links with an idempotent callback, printable receipts, dues CSV and Tally XML export.</td></tr>
+  <tr><td>AI: at-risk flag</td><td>An explainable score from attendance and marks levels and trends. It creates a <i>mentor task</i> only, refuses to judge when there is too little data, and treats a mentor's dismissal as feedback.</td></tr>
+  <tr><td>AI: plain-English questions (optional)</td><td>The question becomes a whitelisted JSON filter spec, which is validated, scoped to the user's campus and run read-only. The answer shows the filters, the row count and which engine answered. A rule parser takes over when the model is unavailable.</td></tr>
+  <tr><td>Dashboards</td><td>The campus dashboard shows the share of classes marked the same day (the brief's 95% target), shortage and risk counts, weekly attendance, a list of classes still to chase, marks-lock progress and automation activity.</td></tr>
+</table>
+
+<h2>2. Architecture and why</h2>
+<div class="flow">  Phone / browser                          Next.js app (one deployable)                     Postgres
+ ┌──────────────────────────┐   HTTPS    ┌───────────────────────────────────────┐   SQL   ┌─────────────┐
+ │ React UI (App Router)    │──────────▶ │ middleware: session JWT, role routes  │────────▶│ masters     │
+ │ Service worker (pages,   │            │ server components: tables, dashboard  │         │ students    │
+ │   static assets)         │            │ server actions: marks, fees, masters  │         │ attendance  │
+ │ IndexedDB: class pack,   │ /api/attendance/sync  (batched, idempotent)        │         │ marks/audit │
+ │   drafts, outbox ────────┼──────────▶ │ lib/sync · lib/marks · lib/fees       │         │ fees        │
+ └──────────────────────────┘            │ lib/risk · lib/assistant ─────────────┼──▶ Gemini (question only,
+                                         │ /api/cron/daily (Vercel Cron)         │     never student data)
+                                         └───────────────────────────────────────┘</div>
+<ul>
+  <li><b>One Next.js monolith, not microservices.</b> Phase 1 is ₹9 lakh and 8 weeks. One codebase, one deploy and one set of types from the database to the screen keeps it buildable and maintainable by a small team. Domain logic lives in plain <code>src/lib/*</code> modules that take a database handle, so it is unit-testable and could later move behind a separate API without rewriting.</li>
+  <li><b>Postgres.</b> The domain is relational: students, batches, sessions, marks, invoices. It needs transactions (sync conflicts, payment callbacks), row locks (<code>SELECT … FOR UPDATE</code>) and aggregate reporting for university, AICTE and NAAC. Any managed Postgres works.</li>
+  <li><b>PGlite locally and in tests.</b> The same Postgres engine compiled to WebAssembly. Reviewers run the app with no database install, and the 37 tests run against real Postgres semantics (unique indexes, row locks, sequences) rather than mocks. Production uses <code>DATABASE_URL</code> with node-postgres, through the same Drizzle schema and migrations.</li>
+  <li><b>Offline through the platform, not a sync framework.</b> A small service worker caches pages and assets. IndexedDB holds the class pack, in-progress drafts and an outbox. The server is the source of truth and decides conflicts in one function (<code>lib/sync.ts</code>). That made the rules simple to explain to the client and to test. A CRDT or a replicated local database would be more machinery than "mark 60 students and send" needs.</li>
+  <li><b>Security in layers.</b> Middleware blocks routes by role. Every server action and API call re-checks the role, and every query is scoped by the campus taken from the session, never from the request. Teacher ownership is checked per class.</li>
+</ul>
+
+<h2>3. Data model</h2>
+<table>
+  <tr><th style="width:24%">Area</th><th style="width:38%">Tables</th><th>Notes</th></tr>
+  <tr><td>Masters</td><td>campuses, departments, programmes, batches, subjects, faculty, teaching_assignments, timetable_slots, calendar_events</td><td>A <i>batch</i> is programme + intake year + section. A <i>teaching assignment</i> (batch × subject → teacher) is the anchor for attendance and marks, so reassigning a teacher moves both.</td></tr>
+  <tr><td>People</td><td>users, students</td><td>Users carry a role and campus (plus faculty_id for teachers). Students hold <code>parent_consent_at</code> for the DPDP Act and the guardian's message language.</td></tr>
+  <tr><td>Attendance</td><td>attendance_sessions (UUID PK), attendance_records</td><td>The session ID is generated on the phone, which makes retries safe. Unique (batch, date, period) means a class can only be marked once. <code>marked_at</code> and <code>synced_at</code> are stored separately; present and absent counts are denormalised for fast lists.</td></tr>
+  <tr><td>Marks</td><td>assessment_components, marks, mark_sheets</td><td>Components per subject (Quiz 1 out of 5, Mid-sem 20, Assignment 10, Quiz 2 5). Each subject-and-batch sheet carries its workflow state.</td></tr>
+  <tr><td>Fees</td><td>fee_structures, scholarships, fee_invoices, payments, receipt_seq</td><td>The balance is computed (gross − concession − successful payments), never stored. A unique <code>reference</code> stops a replayed callback from crediting twice. Receipt numbers come from a Postgres sequence.</td></tr>
+  <tr><td>AI and audit</td><td>risk_flags, messages, audit_log, assistant_queries</td><td>A risk flag <i>is</i> the mentor task. Messages carry a unique dedupe key. The audit log stores before and after values plus a reason for marks, attendance corrections, payments and masters. Every assistant question and the spec it ran is logged.</td></tr>
+</table>
+
+<h2>4. Main flows</h2>
+<h3>4.1 Attendance in class: the hard part</h3>
+<div class="flow">Staff room (Wi-Fi)        Classroom (no signal)                       Back in signal
+GET /api/faculty/pack  →  open class → all present by default        outbox.flush() on 'online' event,
+ rosters + timetable       tap absentees (each tap → IndexedDB draft)   every 20 s while pending, on focus
+ + existing marks          Submit → outbox item {uuid, markedAt, …}   POST /api/attendance/sync (≤ 50)
+ + 14 days of holidays     list shows "Saved on phone"                   ↳ per-session result:</div>
+<table>
+  <tr><th style="width:28%">Server sees</th><th style="width:18%">Result</th><th>Why</th></tr>
+  <tr><td>Same UUID, same marks</td><td>duplicate</td><td>The request timed out on weak Wi-Fi and the phone resent it. This is a harmless no-op.</td></tr>
+  <tr><td>Same UUID, different marks</td><td>updated</td><td>The teacher corrected the class. The before and after values go to the audit log.</td></tr>
+  <tr><td>Other UUID, later <code>markedAt</code></td><td>replaced</td><td>The later decision wins. The older copy is kept in the audit log.</td></tr>
+  <tr><td>Other UUID, earlier <code>markedAt</code></td><td>conflict</td><td>The phone shows both copies; the teacher chooses <i>Keep server copy</i> or <i>Use mine</i> (an override).</td></tr>
+  <tr><td>Wrong teacher, holiday, future date, not on the timetable, window closed</td><td>rejected</td><td>Shown on the phone with the reason. The office can still correct the record after the window.</td></tr>
+</table>
+<p>Edge cases handled: the 48-hour window is measured from <b>when the class was marked</b>, so a phone that only finds signal two days later still counts. A phone clock running ahead is clamped to server time with a warning. Students who join after the pack was downloaded are reported, not silently dropped. If the phone stays offline past midnight, it rebuilds the day's classes from the cached timetable. Sign-out wipes cached rosters (staff phones are shared), but first warns if unsynced classes would be lost. <b>Target: under 30 seconds per class.</b> One tap per absentee plus one submit. The phone shows the elapsed time ("Saved in 14 s · 2 absent").</p>
+
+<h3>4.2 Internal marks</h3>
+<div class="flow">draft ──(faculty submits; all cells filled or AB)──▶ submitted ──(exam cell locks)──▶ locked ──▶ university CSV
+  ▲                                                     │  office moderates; edits logged     │
+  └──────────────(return, with reason)──────────────────┘◀────────(unlock, reason ≥ 10 chars)──┘</div>
+<p>Faculty edit only drafts and the office edits only during moderation. Nobody edits a locked sheet. Validation runs on the client (inline red cells) and again on the server (component maximums, half-mark steps, AB without a score, student must belong to the batch).</p>
+
+<h3>4.3 Fees</h3>
+<p>Each invoice is generated from the structure for the student's programme and category, less scholarships. Counter payments need a unique bank reference and cannot exceed the balance. A payment link creates a pending payment. The mock gateway callback locks the row, re-checks the balance (another payment may have cleared it) and issues a receipt exactly once; replays return the same receipt. Tally export writes Receipt vouchers as Tally Prime XML for a date range.</p>
+
+<h2>5. How the AI works and what happens when it is wrong</h2>
+<h3>5.1 At-risk flag</h3>
+<p><b>Inputs:</b> overall attendance, its change over the last 3 weeks against earlier weeks, the internal-marks average, the latest assessment against earlier ones, and the number of subjects under 40%. <b>Output:</b> a score from 0 to 100 with a plain sentence for every point added. 50 or more is "high", 30–49 is "watch".</p>
+<p><b>Why a transparent points model instead of a trained classifier:</b> the trust has no historical labels yet (who actually failed or dropped out), so any "trained" model would be fitted to nothing. Mentors must be able to see <i>why</i> a student is flagged. The weights are an <span class="tag">ASSUMPTION</span> to recalibrate after one semester of outcomes, using the dismissal notes collected below. Seeded example: Ankit Panda scores 58 (high) because of attendance of 68.2%, a 30-point recent drop and a falling latest assessment. Subhashree Mohanty (81.5%, 33/40) is not flagged.</p>
+<table>
+  <tr><th style="width:30%">Failure mode</th><th>Handling</th></tr>
+  <tr><td>Too little data</td><td>With fewer than 20 classes and no marks, the model does not judge and reports "Not enough data". With one signal it says "Based on attendance only".</td></tr>
+  <tr><td>False positive</td><td>The mentor clicks <i>Not at risk</i> with a note. It is not re-raised for 14 days unless the score rises by 15 or more. Dismissals are stored for recalibration.</td></tr>
+  <tr><td>The student recovers</td><td>An untouched open task closes automatically with a note on the next scan.</td></tr>
+  <tr><td>Harm</td><td>A flag only creates a mentor task. It never changes marks, attendance or exam eligibility. Attendance and marks rules are fixed settings in <code>lib/config.ts</code>, not AI.</td></tr>
+</table>
+
+<h3>5.2 Plain-English questions</h3>
+<div class="flow">"How many second-year students are below 75% this month?"
+   │ Gemini (temperature 0, JSON mode) gets the question + programme list — never student data
+   ▼
+{ output:"count", filters:{ yearOfStudy:2, attendance:{op:"lt", value:75, period:"this_month"} } }
+   │ zod: whitelist of 9 filters, bounded values, unknown keys stripped, unknown programmes dropped
+   ▼ compiled to parameterised Drizzle SELECTs + campus scope from the session  (no SQL from the model)
+Answer: 2 students · chips "Year 2" "Attendance below 75% this month" "Campus scope" · engine: rule parser</div>
+<table>
+  <tr><th style="width:30%">When it is wrong or unsure</th><th>Handling</th></tr>
+  <tr><td>The model misreads the question</td><td>The filters are shown as chips next to the row count, so staff can check what actually ran. Every question and spec is logged.</td></tr>
+  <tr><td>The model is down, slow (10 s) or returns invalid JSON</td><td>The deterministic rule parser answers instead, and the answer says which engine was used.</td></tr>
+  <tr><td>Nothing maps to a filter</td><td>The assistant answers "I couldn't turn that into a report…" with examples. It does not guess.</td></tr>
+  <tr><td>Part of the question cannot be expressed</td><td>The model fills <code>unsupported</code>, which is shown as a warning above the result.</td></tr>
+  <tr><td>Write requests ("delete…", "send…")</td><td>Refused before the model is called. The executor cannot write anyway, because it only issues SELECTs.</td></tr>
+  <tr><td>Data the user may not see</td><td>Campus and role scope are applied in code; the spec cannot widen them. A test proves an Engineering admin asking for the MBA programme gets 0 rows.</td></tr>
+  <tr><td>A thin period such as "this month" on the 2nd</td><td>A warning says roughly how many classes fall in the period and suggests a wider one.</td></tr>
+</table>
+
+<h2>6. UI and design decisions</h2>
+<p>The client asked for calm, minimal and consistent screens: "nothing on screen that lacks a purpose". The decisions:</p>
+<ul>
+  <li><b>One layout pattern everywhere:</b> a page header (title, one line of context, at most two actions), then cards holding a table or list. A sidebar on desktop becomes a bottom tab bar on phones. Faculty see 4 menu items and the office sees 7.</li>
+  <li><b>A restrained palette:</b> warm neutrals, one teal accent for actions and selection, and three status colours that only ever mean something: red for shortage or overdue, amber for watch or awaiting, green for done or locked. Red never decorates.</li>
+  <li><b>Numbers first:</b> tabular figures, Indian digit grouping (₹30,04,000), attendance bars with a tick at 75%, so a shortage is visible before it is read.</li>
+  <li><b>Every state designed:</b> skeletons while loading, empty states that say what to do next, inline errors at the field, toasts for confirmations, and offline banners that explain what still works.</li>
+</ul>
+<div class="shots phone">
+  <figure><img src="img/m-today.png"><figcaption>Faculty home: today's classes and the last 2 days still open for correction, with sync state.</figcaption></figure>
+  <figure><img src="img/m-class.png"><figcaption>Taking attendance: all present by default; big roll-number tiles; amber dot = already below 75%.</figcaption></figure>
+  <div style="flex:1; font-size:9pt; color:var(--ink2)">
+    <p><b style="color:var(--ink)">Why tiles with the last three roll digits:</b> teachers call roll numbers, not names. Three columns fit a 360 px phone without scrolling sideways, and the tap target is about 110×68 px, so it is easy to hit while standing.</p>
+    <p><b style="color:var(--ink)">Why "all present" by default:</b> most classes have 0–5 absentees, so the work is proportional to absences rather than class size.</p>
+    <p><b style="color:var(--ink)">Why the sync chip is always visible:</b> trust. The teacher should never wonder whether attendance "went through".</p>
+  </div>
+</div>
+<div class="shots wide">
+  <figure><img src="img/d-dashboard.png"><figcaption>Campus dashboard: the same-day marking rate leads because it is the client's success metric.</figcaption></figure>
+  <figure><img src="img/d-student.png"><figcaption>One student record: attendance, internals, fees, risk reasons and parent messages in one place.</figcaption></figure>
+</div>
+<div class="shots wide">
+  <figure><img src="img/d-marks.png"><figcaption>Mark sheet under moderation: spreadsheet-like entry, Enter moves down, invalid cells turn red.</figcaption></figure>
+  <figure><img src="img/d-ask.png"><figcaption>Ask: the answer leads with the row count and the filters actually used.</figcaption></figure>
+</div>
+
+<h2>7. Security, privacy and compliance</h2>
+<ul>
+  <li><b>Authentication:</b> bcrypt password hashes and an HS256-signed, httpOnly, SameSite=Lax session cookie (12 hours). Login is rate-limited per email and compares in constant time for unknown emails. Redirects after login are restricted to same-site paths.</li>
+  <li><b>Access control:</b> role checks in middleware and again in every action and route. Campus scope comes from the session. Faculty reach only the classes they teach, plus their mentees. Faculty cannot see fees (data minimisation). Records outside scope return 404, not 403, so their existence is not revealed.</li>
+  <li><b>Input validation:</b> zod on every API body and server action; whitelisted assistant specs; parameterised SQL only.</li>
+  <li><b>DPDP Act 2023:</b> consent is recorded per student; minors without parental consent are flagged in their profile and get no parent messages. Only the question text, never student data, is sent to the AI model. Payment pages show a first name and a masked roll number.</li>
+  <li><b>Exam audit:</b> every mark change, submission, lock, unlock (with reason) and export is logged with the actor and time.</li>
+  <li><b>Secrets:</b> none in the repository. <code>.env*</code> files are ignored, <code>npm run setup</code> generates a local secret, and the cron endpoint uses a constant-time bearer check.</li>
+</ul>
+
+<h2>8. Assumptions</h2>
+<p class="small">Everything below goes beyond what the problem statement says. Each is a setting or seed value that can be changed.</p>
+<div class="assume">
+<ol style="margin:0">
+  <li><span class="tag">A1</span>Seven 50-minute periods, Monday to Saturday (bell times in <code>lib/config.ts</code>).</li>
+  <li><span class="tag">A2</span>The internal scheme for every subject is Quiz 1 (5) + Mid-sem (20) + Assignment (10) + Quiz 2 (5) = 40. Partial schemes are scaled to 40.</li>
+  <li><span class="tag">A3</span>The sample's single "Internal Marks of 40" is the student's average across subjects. The 75% rule applies to overall attendance; per-subject figures are shown alongside.</li>
+  <li><span class="tag">A4</span>University upload format: CSV with <code>RegdNo, SubjectCode, InternalMarks, MaxMarks, Status(P/AB)</code>. The real university template was not provided, and the exporter is one function to adapt.</li>
+  <li><span class="tag">A5</span>Faculty may correct attendance for 48 hours after a class ends; after that only the office can.</li>
+  <li><span class="tag">A6</span>Roll numbers follow the sample (<code>ENG-24-CSE-0412</code>). To reproduce the sample percentages exactly with whole-number class counts, the seed has the sample students report 0–5 classes late in week 1.</li>
+  <li><span class="tag">A7</span>Fee amounts (₹1,40,000 B.Tech General/OBC/EWS; ₹1,25,000 SC/ST without the development fee; ₹2,10,000 MBA) and scholarships (Post-Matric ₹90,000, Merit ₹25,000) are illustrative. Tally ledger names must be mapped to the trust's chart of accounts.</li>
+  <li><span class="tag">A8</span>Parental consent is captured on the admission form for every student; messages go only where consent is recorded. The Odia message templates need review by a native speaker before go-live.</li>
+  <li><span class="tag">A9</span>"Office admin" covers the exam cell and accounts in this phase; finer roles come later. The timetable is a master (generating it is out of scope).</li>
+  <li><span class="tag">A10</span>At-risk weights are hand-set (see 5.1). Gemini is the default model because it has a free tier for a pilot; the adapter is about 50 lines and can point at any provider.</li>
+</ol>
+</div>
+
+<h2>9. Testing</h2>
+<p><b>37 automated tests</b> (<code>npm test</code>, about 7 s) run on a fresh in-memory Postgres seeded with demo data:</p>
+<ul>
+  <li><b>Sync:</b> idempotent retry, correction, conflict, newer copy replaces, override, wrong teacher, holiday, future date, not on the timetable, the edit window judged on <code>markedAt</code>, office correction after the window, clock-skew clamp, foreign students ignored.</li>
+  <li><b>Marks:</b> totals and scaling, validation, the role and state edit matrix, no submission with empty cells, lock, unlock reason required, the audit trail of every step, the university CSV format.</li>
+  <li><b>Risk:</b> a healthy student is not flagged, Ankit's profile scores high with reasons, insufficient-data and single-signal cases, no duplicate tasks on rescan, dismissal suppression.</li>
+  <li><b>Assistant:</b> the brief's example question, combined filters, unknown questions, whitelist validation, campus isolation, write refusal, and the three sample students matching the brief exactly.</li>
+  <li><b>Fees:</b> balance and concession bounds, overpayment and duplicate-reference rejection, callback idempotency, double payment through two links, Tally export scoped to the campus.</li>
+</ul>
+<p>The tests caught a real bug: the rule parser read "20,000" as 20. Beyond the suite, a production build was checked in a headless browser on a 390 px phone: a reload with the network cut still loads the class list, a class marked offline syncs on reconnect, and faculty get 403 from admin APIs.</p>
+
+<h2>10. What I cut, and what comes next</h2>
+<div class="two">
+<div>
+<h3>Cut from this phase (on purpose)</h3>
+<ul>
+  <li>Admissions: applicant import, document checklist, roll-number allocation. The <code>students</code> table is ready for it.</li>
+  <li>Student and parent logins (parents get mocked SMS only), staff leave, the trust-level dashboard across campuses.</li>
+  <li>Real SMS or WhatsApp and payment gateways. Both are mocked behind small functions.</li>
+  <li>University, AICTE and NAAC report formats beyond the internal-marks CSV.</li>
+  <li>Bank-statement reconciliation (the brief's "10 days to 1"). Unique references and Tally export prepare for it.</li>
+  <li>Odia interface text (only parent messages are in Odia, as the brief asks).</li>
+  <li>Distributed rate limiting, a Content Security Policy, and a password reset flow.</li>
+</ul>
+</div>
+<div>
+<h3>Next (in priority order)</h3>
+<ol>
+  <li><b>Pilot on one department for 2 weeks</b> and measure seconds per class and the same-day rate against the 95% target.</li>
+  <li>Admissions import with a document checklist and DPDP consent capture, so a student exists once from day one.</li>
+  <li>Bank statement CSV matching against references for one-day reconciliation.</li>
+  <li>Results-day readiness for 7,800 concurrent students: static, per-student results pages behind a CDN, a read replica, load testing at 3× peak. The core is stateless, so it scales horizontally.</li>
+  <li>Recalibrate the risk weights with the first semester's outcomes and dismissal notes; consider logistic regression once labels exist.</li>
+  <li>Expand to the management and pharmacy campuses (the data model and campus scoping already support it; the demo seeds two campuses), then the trust dashboard and NAAC reports.</li>
+</ol>
+</div>
+</div>
+<p class="small">Honest limits: the session secret rotates only by redeploy; the rate limiter is per instance; on a teacher's own phone the cached roster stays until sign-out or the next download; receipt numbers come from a sequence, so a rolled-back payment can skip a number (the audit log explains it).</p>
+
+</body>
+</html>
