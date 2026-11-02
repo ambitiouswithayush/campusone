@@ -18,6 +18,9 @@ async function connect(): Promise<DB> {
     });
     return drizzle(pool, { schema }) as unknown as DB;
   }
+  if (process.env.VERCEL) {
+    throw new Error("DATABASE_URL is required on Vercel — the embedded database cannot persist on serverless functions.");
+  }
   // Zero-install local mode: real Postgres compiled to WASM, persisted to ./.data
   const { PGlite } = await import("@electric-sql/pglite");
   const { drizzle } = await import("drizzle-orm/pglite");
