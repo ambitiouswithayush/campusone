@@ -105,8 +105,9 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
         title={s.name}
         subtitle={
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="tabular">{s.rollNo}</span>· {batchLabel(b, b.programmeName)} · Sem {b.semester}
-            {mentor && <>· Mentor {mentor.name}</>}
+            <span className="tabular">{s.rollNo}</span>
+            <span>· {batchLabel(b, b.programmeName)} · Sem {b.semester}</span>
+            {mentor && <span>· Mentor {mentor.name}</span>}
             <RiskBadge level={openFlag?.level ?? null} />
           </span>
         }
