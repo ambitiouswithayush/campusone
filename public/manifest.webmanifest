@@ -1,0 +1,10 @@
+{
+  "name": "CampusOne",
+  "short_name": "CampusOne",
+  "description": "Attendance, internal marks and fees for Company A's campuses",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f7f5",
+  "theme_color": "#0f6b66",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

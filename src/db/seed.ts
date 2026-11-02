@@ -193,7 +193,7 @@ export async function seed(db: DB, opts: SeedOptions = {}) {
   const slots: { assignmentId: number; batchId: number; dayOfWeek: number; period: number }[] = [];
   const order = [...assignments].sort((a, b) => a.facultyId - b.facultyId);
   for (const a of order) {
-    const perWeek = 4;
+    const perWeek = 5;
     let placed = 0;
     for (let round = 0; round < 3 && placed < perWeek; round++) {
       for (let k = 0; k < 6 && placed < perWeek; k++) {
@@ -293,7 +293,9 @@ export async function seed(db: DB, opts: SeedOptions = {}) {
   const sessions: (typeof t.attendanceSessions.$inferInsert)[] = [];
   const records: (typeof t.attendanceRecords.$inferInsert)[] = [];
   const priyaUser = facultyUser.get(F["F-CSE-014"].id)!;
-  const yesterday = addDays(today, -1);
+  // Most recent working day before today — one of Priya's classes there is left for her to mark.
+  let lastWorking = addDays(today, -1);
+  while (dayOfWeek(lastWorking) === 7 || lastWorking === holiday) lastWorking = addDays(lastWorking, -1);
   const uuid = () =>
     "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
       const r = Math.floor(rand() * 16);
@@ -308,7 +310,7 @@ export async function seed(db: DB, opts: SeedOptions = {}) {
       const a = assignments.find((x) => x.id === slot.assignmentId)!;
       const takerUser = facultyUser.get(a.facultyId) ?? adminUser.id;
       // Leave a few classes unmarked so completion is realistic; keep one of Priya's from yesterday pending.
-      if (d === yesterday && a.facultyId === F["F-CSE-014"].id && slot.period === Math.max(...slots.filter((s) => s.assignmentId === a.id && s.dayOfWeek === dow).map((s) => s.period))) continue;
+      if (d === lastWorking && a.facultyId === F["F-CSE-014"].id && slot.period === Math.max(...slots.filter((s) => s.assignmentId === a.id && s.dayOfWeek === dow).map((s) => s.period))) continue;
       if (rand() < 0.025) continue;
       const late = rand() < 0.07;
       const end = istInstant(d, PERIODS[slot.period].end);

@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+/*
+ * One restrained palette: ink neutrals, a single teal accent, and three semantic colours that
+ * only ever mean something (shortage / warning / ok). No decorative colour.
+ */
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-canvas: #f7f7f5;
+  --color-surface: #ffffff;
+  --color-line: #e7e5e0;
+  --color-line-strong: #d6d3cc;
+  --color-ink: #1c1b19;
+  --color-ink-2: #57534e;
+  --color-ink-3: #8a857d;
+
+  --color-accent: #0f6b66;
+  --color-accent-hover: #0b5753;
+  --color-accent-soft: #e6f2f1;
+  --color-accent-ink: #0b4f4b;
+
+  --color-danger: #b42318;
+  --color-danger-soft: #fdecea;
+  --color-warn: #a15c07;
+  --color-warn-soft: #fdf3e2;
+  --color-ok: #067647;
+  --color-ok-soft: #e7f6ee;
+
+  --radius-card: 12px;
+}
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    @apply bg-canvas text-ink antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  :focus-visible { @apply outline-2 outline-offset-2 outline-accent; }
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type="number"] { -moz-appearance: textfield; }
+}
+
+@layer components {
+  .tabular { font-variant-numeric: tabular-nums; }
+  .table-base { @apply w-full text-sm; }
+  .table-base th { @apply text-left font-medium text-ink-3 text-xs uppercase tracking-wide px-4 py-2.5 border-b border-line bg-canvas/60 whitespace-nowrap; }
+  .table-base td { @apply px-4 py-3 border-b border-line align-middle; }
+  .table-base tbody tr:last-child td { @apply border-b-0; }
+  .table-base tbody tr { @apply transition-colors; }
+  .table-base tbody tr:hover { @apply bg-canvas/70; }
+}
+
+@keyframes fade-up { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.animate-fade-up { animation: fade-up 0.18s ease-out backwards; }
+@media (prefers-reduced-motion: reduce) { .animate-fade-up { animation: none; } }
