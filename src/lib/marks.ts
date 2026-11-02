@@ -14,8 +14,17 @@ import type { SessionUser } from "./session";
  * sheet; unlocking needs a written reason. Every changed value is written to the audit log.
  */
 
-export { canEdit, internalTotal, validateEntry, MarkEntry, type SheetStatus } from "./marks-calc";
-import { canEdit, internalTotal, validateEntry, MarkEntry, type SheetStatus } from "./marks-calc";
+import { z } from "zod";
+import { canEdit, internalTotal, validateEntry, type SheetStatus } from "./marks-calc";
+export { canEdit, internalTotal, validateEntry, type SheetStatus } from "./marks-calc";
+
+export const MarkEntry = z.object({
+  studentId: z.number().int().positive(),
+  componentId: z.number().int().positive(),
+  score: z.number().min(0).max(100).multipleOf(0.5).nullable(),
+  absent: z.boolean(),
+});
+export type MarkEntry = z.infer<typeof MarkEntry>;
 
 export class MarksError extends Error {}
 

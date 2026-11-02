@@ -1,16 +1,14 @@
-import { z } from "zod";
 import { RULES } from "./config";
 import type { Role } from "./session";
 
 export type SheetStatus = "draft" | "submitted" | "locked";
 
-export const MarkEntry = z.object({
-  studentId: z.number().int().positive(),
-  componentId: z.number().int().positive(),
-  score: z.number().min(0).max(100).multipleOf(0.5).nullable(),
-  absent: z.boolean(),
-});
-export type MarkEntry = z.infer<typeof MarkEntry>;
+export interface MarkEntry {
+  studentId: number;
+  componentId: number;
+  score: number | null;
+  absent: boolean;
+}
 
 /** Faculty edit their draft; the exam cell edits only while moderating. Nobody edits locked. */
 export function canEdit(status: SheetStatus, role: Role): boolean {
