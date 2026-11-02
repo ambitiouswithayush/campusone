@@ -252,7 +252,7 @@ export async function seed(db: DB, opts: SeedOptions = {}) {
       const r = rand();
       // Most students attend well; a tail does not. A few slide in recent weeks.
       const base = sample ? sample.attendance / 100 : r < 0.1 ? 0.58 + rand() * 0.12 : r < 0.25 ? 0.72 + rand() * 0.08 : 0.82 + rand() * 0.15;
-      const trend = sample?.trend === "down" ? -0.25 : rand() < 0.08 ? -0.3 : 0;
+      const trend = sample?.trend === "down" ? -0.25 : rand() < 0.08 ? -0.2 : 0;
       profiles.set(roll, { base, trend, ability: Math.min(1, Math.max(0.25, base - 0.1 + (rand() - 0.5) * 0.4)) });
       const month = 1 + Math.floor(rand() * 12);
       const day = 1 + Math.floor(rand() * 28);

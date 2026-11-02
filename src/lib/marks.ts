@@ -1,5 +1,4 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
-import { z } from "zod";
 import type { DB } from "@/db";
 import { assessmentComponents, markSheets, marks, students, subjects } from "@/db/schema";
 import { getAssignmentFor } from "./access";
@@ -15,42 +14,10 @@ import type { SessionUser } from "./session";
  * sheet; unlocking needs a written reason. Every changed value is written to the audit log.
  */
 
-export type SheetStatus = "draft" | "submitted" | "locked";
+export { canEdit, internalTotal, validateEntry, MarkEntry, type SheetStatus } from "./marks-calc";
+import { canEdit, internalTotal, validateEntry, MarkEntry, type SheetStatus } from "./marks-calc";
 
 export class MarksError extends Error {}
-
-export const MarkEntry = z.object({
-  studentId: z.number().int().positive(),
-  componentId: z.number().int().positive(),
-  score: z.number().min(0).max(100).multipleOf(0.5).nullable(),
-  absent: z.boolean(),
-});
-export type MarkEntry = z.infer<typeof MarkEntry>;
-
-export function canEdit(status: SheetStatus, role: SessionUser["role"]): boolean {
-  if (status === "locked") return false;
-  if (role === "faculty") return status === "draft";
-  return true;
-}
-
-/** Validate one value against its component; returns an error message or null. */
-export function validateEntry(e: MarkEntry, maxMarks: number): string | null {
-  if (e.absent && e.score !== null) return "Absent students cannot have a score.";
-  if (e.score !== null && e.score > maxMarks) return `Score cannot exceed ${maxMarks}.`;
-  return null;
-}
-
-/** Sum of components, scaled to the university internal maximum if the scheme differs. */
-export function internalTotal(
-  entries: { score: number | null; absent: boolean; maxMarks: number }[],
-  internalMax: number = RULES.internalMax,
-): number | null {
-  if (!entries.length || entries.every((e) => e.score === null && !e.absent)) return null;
-  const max = entries.reduce((s, e) => s + e.maxMarks, 0);
-  const got = entries.reduce((s, e) => s + (e.absent ? 0 : (e.score ?? 0)), 0);
-  if (max === 0) return null;
-  return Math.round(((got * internalMax) / max) * 2) / 2;
-}
 
 async function sheetStatus(db: DB, assignmentId: number): Promise<SheetStatus> {
   const [s] = await db.select().from(markSheets).where(eq(markSheets.assignmentId, assignmentId));
@@ -84,7 +51,13 @@ export async function saveMarks(db: DB, user: SessionUser, assignmentId: number,
   const a = await getAssignmentFor(db, user, assignmentId);
   const status = await sheetStatus(db, assignmentId);
   if (!canEdit(status, user.role)) {
-    throw new MarksError(status === "locked" ? "Marks are locked after moderation." : "Sheet is with the exam cell for moderation.");
+    throw new MarksError(
+      status === "locked"
+        ? "Marks are locked after moderation."
+        : user.role === "faculty"
+          ? "Sheet is with the exam cell for moderation."
+          : "The teacher is still entering marks; you can moderate once it is submitted.",
+    );
   }
   const comps = await db.select().from(assessmentComponents).where(eq(assessmentComponents.subjectId, a.subjectId));
   const compMax = new Map(comps.map((c) => [c.id, c.maxMarks]));

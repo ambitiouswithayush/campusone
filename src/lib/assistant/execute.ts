@@ -61,6 +61,10 @@ export async function runSpec(db: DB, user: SessionUser, spec: QuerySpec, today 
   const range = f.attendance ? periodRange(f.attendance.period, today) : undefined;
 
   let rows = await studentRows(db, user, { where, attendanceRange: range });
+  // A short period (e.g. "this month" on the 2nd) gives noisy percentages — say so.
+  const withData = rows.filter((r) => r.sessionsHeld > 0);
+  const avgHeld = withData.length ? withData.reduce((a, r) => a + r.sessionsHeld, 0) / withData.length : 0;
+  const lowData = !!f.attendance && avgHeld < 15;
   if (f.attendance) rows = rows.filter((r) => r.attendancePct !== null && compare(f.attendance!.op, r.attendancePct, f.attendance!.value));
   if (f.internalMarks) rows = rows.filter((r) => r.internal40 !== null && compare(f.internalMarks!.op, r.internal40, f.internalMarks!.value));
   if (f.feeDue) rows = rows.filter((r) => compare(f.feeDue!.op, r.feeDue, f.feeDue!.value));
@@ -77,7 +81,7 @@ export async function runSpec(db: DB, user: SessionUser, spec: QuerySpec, today 
     });
   }
   const rowCount = rows.length;
-  return { rowCount, rows: rows.slice(0, spec.limit), truncated: rowCount > spec.limit };
+  return { rowCount, rows: rows.slice(0, spec.limit), truncated: rowCount > spec.limit, lowData, avgHeld: Math.round(avgHeld) };
 }
 
 const WRITE_INTENT = /\b(delete|remove|update|change|set|mark|send|email|sms|insert|drop|modify|edit|approve|lock|unlock|pay)\b/i;
@@ -111,6 +115,11 @@ export async function ask(db: DB, user: SessionUser, question: string): Promise<
   const result = await runSpec(db, user, spec, today);
   await log(spec, engine, result.rowCount);
   const filters = describeFilters(spec, names);
-  const notes = [spec.unsupported, filters.length ? null : "No filters were applied — showing every student you can see."].filter(Boolean);
-  return { status: "ok", engine, filters, output: spec.output, note: notes.join(" ") || null, ...result };
+  const { lowData, avgHeld, ...data } = result;
+  const notes = [
+    spec.unsupported,
+    filters.length ? null : "No filters were applied — showing every student you can see.",
+    lowData ? `Only about ${avgHeld} classes per student fall in this period, so these percentages can swing a lot. Try “overall” or “last 30 days”.` : null,
+  ].filter(Boolean);
+  return { status: "ok", engine, filters, output: spec.output, note: notes.join(" ") || null, ...data };
 }
