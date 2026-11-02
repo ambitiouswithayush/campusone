@@ -11,7 +11,12 @@ export interface ProgrammeRef {
  * Handles the common question shapes; anything it cannot map is reported, not guessed.
  */
 export function parseWithRules(question: string, programmes: ProgrammeRef[]): { spec: QuerySpec | null; matched: string[] } {
-  const q = ` ${question.toLowerCase().replace(/[?.,!]/g, " ").replace(/\s+/g, " ")} `;
+  // Keep thousands separators and decimals ("20,000", "72.5") intact; drop other punctuation.
+  const q = ` ${question
+    .toLowerCase()
+    .replace(/(\d),(?=\d{2,3}\b)/g, "$1")
+    .replace(/(?<!\d)[.,]|[.,](?!\d)|[?!]/g, " ")
+    .replace(/\s+/g, " ")} `;
   const matched: string[] = [];
   const filters: QuerySpec["filters"] = {};
 
