@@ -87,8 +87,13 @@ export async function completeMockPayment(db: DB, paymentId: string, outcome: "s
     const [p] = await tx.select().from(payments).where(eq(payments.id, paymentId)).for("update");
     if (!p || p.mode !== "online_test") throw new FeeError("Payment link not found.");
     if (p.status !== "pending") return p;
+    const [{ campusId }] = await tx.select({ campusId: students.campusId }).from(students).where(eq(students.id, p.studentId));
+    // The gateway has no user, so the audit actor is null ("System").
+    const log = (action: string, after: unknown) =>
+      audit(tx, { campusId, actorUserId: null, entity: "payment", entityId: p.id, action, after });
     if (outcome === "failed") {
       const [f] = await tx.update(payments).set({ status: "failed" }).where(eq(payments.id, p.id)).returning();
+      await log("gateway_failed", { amount: p.amount });
       return f;
     }
     const [inv] = await tx.select().from(feeInvoices).where(eq(feeInvoices.id, p.invoiceId));
@@ -98,6 +103,7 @@ export async function completeMockPayment(db: DB, paymentId: string, outcome: "s
       .where(and(eq(payments.invoiceId, p.invoiceId), eq(payments.status, "success")));
     if (p.amount > balance(inv.gross, inv.concession, paid)) {
       const [f] = await tx.update(payments).set({ status: "failed" }).where(eq(payments.id, p.id)).returning();
+      await log("gateway_rejected_balance_changed", { amount: p.amount });
       return f;
     }
     const receiptNo = await nextReceiptNo(tx as unknown as DB);
@@ -106,6 +112,7 @@ export async function completeMockPayment(db: DB, paymentId: string, outcome: "s
       .set({ status: "success", paidAt: new Date(), receiptNo, reference: `TEST-${p.id.slice(0, 8).toUpperCase()}` })
       .where(eq(payments.id, p.id))
       .returning();
+    await log("gateway_payment", { amount: p.amount, receiptNo, reference: ok.reference });
     return ok;
   });
 }

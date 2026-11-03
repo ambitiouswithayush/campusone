@@ -10,7 +10,14 @@ export function shortageMessage(lang: "en" | "or", name: string, pct: number, th
   return `Dear parent, ${name}'s attendance is ${p}%, below the required ${threshold}%. Please contact the mentor. - CampusOne`;
 }
 
-export function feeReminderMessage(lang: "en" | "or", name: string, amount: string, dueDate: string) {
+/** Indian SMS convention: DD-MM-YYYY, the same in both languages. */
+function smsDate(iso: string) {
+  const [y, m, d] = iso.split("-");
+  return `${d}-${m}-${y}`;
+}
+
+export function feeReminderMessage(lang: "en" | "or", name: string, amount: string, dueIso: string) {
+  const dueDate = smsDate(dueIso);
   if (lang === "or") {
     return `ପ୍ରିୟ ଅଭିଭାବକ, ${name}ଙ୍କ ${amount} ଫି ବାକି ଅଛି (ଶେଷ ତାରିଖ ${dueDate})। ଦୟାକରି ଶୀଘ୍ର ପୈଠ କରନ୍ତୁ। - CampusOne`;
   }

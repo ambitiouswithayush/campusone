@@ -1,7 +1,7 @@
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import type { DB } from "@/db";
-import { students } from "@/db/schema";
+import { auditLog, students } from "@/db/schema";
 import { balance, completeMockPayment, concessionFor, createPaymentLink, invoicesForStudents, recordCounterPayment, tallyXml } from "@/lib/fees";
 import type { SessionUser } from "@/lib/session";
 import { sessionFor, testDb } from "./helpers";
@@ -50,6 +50,9 @@ describe("payments", () => {
     const [inv] = await invoicesForStudents(db, [ok.studentId]);
     expect(inv.due).toBe(0);
     await expect(createPaymentLink(db, admin, invoiceId)).rejects.toThrow(/Nothing is due/);
+    // One audit entry per gateway outcome; the replay adds nothing.
+    const logged = await db.select().from(auditLog).where(and(eq(auditLog.entity, "payment"), inArray(auditLog.entityId, [link.id, second.id])));
+    expect(logged.map((a) => a.action).sort()).toEqual(["gateway_payment", "gateway_rejected_balance_changed"]);
   });
 
   it("exports receipts as Tally vouchers for the campus only", async () => {
