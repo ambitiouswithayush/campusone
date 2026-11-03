@@ -47,8 +47,10 @@ Internal marks are out of 40. Never invent programme codes. If the question asks
     const known = new Set(programmes.map((p) => p.code));
     const codes = parsed.data.filters.programmeCodes;
     if (codes?.some((c) => !known.has(c))) {
-      parsed.data.filters.programmeCodes = codes.filter((c) => known.has(c));
-      parsed.data.unsupported = [parsed.data.unsupported, "Ignored an unknown programme."].filter(Boolean).join(" ");
+      // Dropping every code would widen the answer to all students; keep them so the campus scope returns nothing.
+      const kept = codes.filter((c) => known.has(c));
+      if (kept.length) parsed.data.filters.programmeCodes = kept;
+      parsed.data.unsupported = [parsed.data.unsupported, kept.length ? "Ignored an unknown programme." : "That programme is not on this campus."].filter(Boolean).join(" ");
     }
     return parsed.data;
   } catch (e) {

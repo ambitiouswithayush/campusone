@@ -85,6 +85,16 @@ describe("assistant on data", () => {
     expect(mba.rowCount).toBe(0);
   });
 
+  it("says a programme on another campus is out of scope instead of widening to everyone", async () => {
+    const eng = await ask(db, admin, "list MBA students");
+    expect(eng.rowCount).toBe(0);
+    expect(eng.note).toMatch(/not on your campus/);
+    const own = await ask(db, mgt, "list MBA students");
+    expect(own.status).toBe("ok");
+    expect(own.rowCount).toBeGreaterThan(0);
+    expect(own.rows.every((r) => r.programmeCode === "MBA")).toBe(true);
+  });
+
   it("answers with filters and a row count, and refuses write requests", async () => {
     const a = await ask(db, admin, "students below 75% attendance");
     expect(a.status).toBe("ok");

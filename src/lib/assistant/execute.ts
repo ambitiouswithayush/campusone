@@ -1,4 +1,4 @@
-import { eq, ilike, inArray } from "drizzle-orm";
+import { eq, ilike, inArray, ne } from "drizzle-orm";
 import type { DB } from "@/db";
 import { assistantQueries, batches, programmes, students } from "@/db/schema";
 import { addDays, isoDateIST, startOfMonth } from "../dates";
@@ -29,7 +29,15 @@ const ALIASES: Record<string, string[]> = {
 };
 
 export async function campusProgrammes(db: DB, campusId: number): Promise<ProgrammeRef[]> {
-  const rows = await db.select({ code: programmes.code, name: programmes.name }).from(programmes).where(eq(programmes.campusId, campusId));
+  return withAliases(await db.select({ code: programmes.code, name: programmes.name }).from(programmes).where(eq(programmes.campusId, campusId)));
+}
+
+/** Programmes on other campuses, so a question about them is answered "not yours" instead of "everyone". */
+async function otherCampusProgrammes(db: DB, campusId: number): Promise<ProgrammeRef[]> {
+  return withAliases(await db.select({ code: programmes.code, name: programmes.name }).from(programmes).where(ne(programmes.campusId, campusId)));
+}
+
+function withAliases(rows: { code: string; name: string }[]): ProgrammeRef[] {
   return rows.map((r) => {
     const suffix = r.code.split("-").pop()!;
     return { ...r, aliases: [r.code.toLowerCase(), ...(ALIASES[suffix] ?? [suffix.toLowerCase()])] };
@@ -101,6 +109,15 @@ export async function ask(db: DB, user: SessionUser, question: string): Promise<
       note: "I can only look things up — I can't change records or send messages. Try asking “which students …” or “how many …”." };
   }
 
+  const lower = q.toLowerCase();
+  const mentions = (p: ProgrammeRef) => p.aliases.some((a) => new RegExp(`\\b${a}\\b`).test(lower));
+  const foreign = (await otherCampusProgrammes(db, user.campusId)).filter(mentions);
+  if (foreign.length && !progs.some(mentions)) {
+    await log(null, "none", 0);
+    return { status: "unsure", engine: "none", filters: [], rowCount: 0, rows: [], output: "list", truncated: false,
+      note: `${foreign.map((p) => p.name).join(", ")} is not on your campus, so there are no students you can see for it.` };
+  }
+
   let engine: AssistantAnswer["engine"] = "llm";
   let spec = await parseWithLlm(q, progs, today);
   if (!spec) {
@@ -119,7 +136,11 @@ export async function ask(db: DB, user: SessionUser, question: string): Promise<
   const notes = [
     spec.unsupported,
     filters.length ? null : "No filters were applied — showing every student you can see.",
-    lowData ? `Only about ${avgHeld} classes per student fall in this period, so these percentages can swing a lot. Try “overall” or “last 30 days”.` : null,
+    lowData
+      ? avgHeld < 1
+        ? "No classes have been recorded in this period yet. Try “overall” or “last 30 days”."
+        : `Only about ${avgHeld} ${avgHeld === 1 ? "class" : "classes"} per student fall in this period, so these percentages can swing a lot. Try “overall” or “last 30 days”.`
+      : null,
   ].filter(Boolean);
   return { status: "ok", engine, filters, output: spec.output, note: notes.join(" ") || null, ...data };
 }
