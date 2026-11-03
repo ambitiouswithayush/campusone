@@ -1,6 +1,7 @@
 # CampusOne — deployment and local run
 
 Repository: https://github.com/ambitiouswithayush/campusone
+Live app: https://campusone-livid.vercel.app
 
 ## Demo logins
 
@@ -51,8 +52,13 @@ To use a local Postgres instead of PGlite, set `DATABASE_URL` in `.env.local` be
 ## How it is deployed
 
 Target: **Vercel** (Next.js app + API routes + daily cron) with a **managed Postgres** (Neon, Supabase or
-Vercel Postgres — any Postgres 14+). The app is region-agnostic; Mumbai (`bom1` / `ap-south-1`) keeps
-latency low for Bhubaneswar.
+Vercel Postgres — any Postgres 14+).
+
+**The live demo** runs on Vercel's Hobby plan with Neon's free tier, connected through Vercel's Storage
+tab (which sets `DATABASE_URL`). Functions and the database both sit in Washington, D.C. (`iad1` /
+`us-east-1`), which are Vercel's defaults; keeping them together matters more than distance to the user,
+because each page makes several database round trips. For the trust's production, move both to Mumbai
+(`bom1` / `ap-south-1`) for lower latency from Bhubaneswar and to keep student data in India.
 
 1. Create a Postgres database and copy its connection string.
 2. Import the GitHub repo into Vercel (framework preset: Next.js, no build overrides).

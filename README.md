@@ -8,7 +8,7 @@ offline in class, internal marks with a moderation lock, fee dues, and an at-ris
 - **Office staff** moderate and lock marks, export the university upload file, collect fees, export receipts to Tally, and ask questions in plain English.
 - **Automation** sends shortage alerts and fee reminders (mocked SMS, English or Odia), and flags at-risk students as mentor tasks.
 
-→ Run it: [deployment.md](deployment.md) · Design: [docs/TDD.pdf](docs/TDD.pdf)
+→ Live: https://campusone-livid.vercel.app · Run it: [deployment.md](deployment.md) · Design: [docs/TDD.pdf](docs/TDD.pdf)
 
 ```
 npm install && npm run setup && npm run dev
