@@ -8,7 +8,18 @@ offline in class, internal marks with a moderation lock, fee dues, and an at-ris
 - **Office staff** moderate and lock marks, export the university upload file, collect fees, export receipts to Tally, and ask questions in plain English.
 - **Automation** sends shortage alerts and fee reminders (mocked SMS, English or Odia), and flags at-risk students as mentor tasks.
 
-→ Live: https://campusone-livid.vercel.app · Run it: [deployment.md](deployment.md) · Design: [docs/TDD.pdf](docs/TDD.pdf)
+**Live demo: [https://campusone-livid.vercel.app](https://campusone-livid.vercel.app)** · Run it: [deployment.md](deployment.md) · Design: [docs/TDD.pdf](docs/TDD.pdf)
+
+## Demo logins
+
+Password for every account: **`Demo@2026`** (seeded demo data only; no real people).
+
+| Role | Email | Try |
+|---|---|---|
+| Faculty | `priya.das@campusone.test` | Attendance (works offline — open on a phone), mark entry for CS201 |
+| Office admin — Engineering | `admin@campusone.test` | Dashboard, moderate & lock marks, fees, at-risk, Ask, Setup |
+| Faculty | `rakesh.sahu@campusone.test` | Ankit Panda's mentor, ME201 draft sheet |
+| Office admin — Management | `mgt.admin@campusone.test` | Campus isolation: sees only the MBA campus |
 
 ```
 npm install && npm run setup && npm run dev
