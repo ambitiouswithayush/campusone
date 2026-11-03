@@ -36,7 +36,7 @@ npm run dev       # http://localhost:3000
 Other commands:
 
 ```bash
-npm test          # 37 tests against an in-memory Postgres
+npm test          # 38 tests against an in-memory Postgres
 npm run lint      # TypeScript type check
 npm run db:reset  # wipe and reseed (stop `npm run dev` first — PGlite allows one process)
 npm run build && npm start   # production build; the offline service worker only runs here
@@ -64,6 +64,11 @@ latency low for Bhubaneswar.
    reminders and the at-risk scan. Vercel sends `Authorization: Bearer $CRON_SECRET` automatically.
 
 Health check: `GET /api/health` returns `{"ok":true}` when the database answers.
+
+**Keeping the hosted demo fresh.** The seed builds a semester of history ending on the day it runs
+(today's timetable, the same-day marking rate, the 48-hour correction window). On a hosted copy that
+data ages a day at a time, so reseed right before a review:
+`DATABASE_URL="<connection string>" npm run db:reset` (wipes the demo database and seeds it again).
 
 The app refuses to start on Vercel without `DATABASE_URL` (the embedded database cannot persist on
 serverless functions). Any Node host with a persistent disk (Render, Railway, a VM) can also run it

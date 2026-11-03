@@ -33,5 +33,5 @@ src/
   lib/assistant/         question → validated filter spec → scoped read-only query
   lib/offline/           IndexedDB store, outbox, sync client
   db/schema.ts           data model; db/seed.ts demo data
-tests/                   37 tests on an in-memory Postgres
+tests/                   38 tests on an in-memory Postgres
 ```

@@ -59,7 +59,7 @@
   <tr><td>Masters for one programme</td><td>Campuses, departments, programmes, batches (intake + section), subjects with the 40-mark internal scheme, faculty, teaching assignments, weekly timetable and academic calendar. Subjects, faculty, teacher reassignment and calendar entries are editable; every change is audited.</td></tr>
   <tr><td>Mobile attendance, offline in class</td><td>A class pack (rosters and timetable) is cached on the phone. Every student starts as present and the teacher taps only the absentees. Every tap is saved to the phone; submissions queue in an outbox and sync when signal returns. Retries are idempotent, conflicts are resolved by rule, and the server enforces a 48-hour edit window.</td></tr>
   <tr><td>Alerts below 75%</td><td>After each sync and nightly, an automated shortage alert goes to the parent (a mocked SMS, in English or Odia). It is de-duplicated to one per student per week and held back when parental consent is missing.</td></tr>
-  <tr><td>Internal marks with moderation lock</td><td>A grid with inline validation and keyboard entry. The workflow is draft → submitted → moderated → locked; unlocking needs a written reason. Every change is logged, and locked sheets export in the university upload format.</td></tr>
+  <tr><td>Internal marks with moderation lock</td><td>A grid with inline validation and keyboard entry. The workflow is draft → submitted (moderation) → locked; unlocking needs a written reason. Every change is logged, and locked sheets export in the university upload format.</td></tr>
   <tr><td>Fee dues</td><td>Fee structures by programme and category, scholarships, dues ledger, bank-counter receipts, test-mode payment links with an idempotent callback, printable receipts, dues CSV and Tally XML export.</td></tr>
   <tr><td>AI: at-risk flag</td><td>An explainable score from attendance and marks levels and trends. It creates a <i>mentor task</i> only, refuses to judge when there is too little data, and treats a mentor's dismissal as feedback.</td></tr>
   <tr><td>AI: plain-English questions (optional)</td><td>The question becomes a whitelisted JSON filter spec, which is validated, scoped to the user's campus and run read-only. The answer shows the filters, the row count and which engine answered. A rule parser takes over when the model is unavailable.</td></tr>
@@ -80,7 +80,7 @@
 <ul>
   <li><b>One Next.js monolith, not microservices.</b> Phase 1 is ₹9 lakh and 8 weeks. One codebase, one deploy and one set of types from the database to the screen keeps it buildable and maintainable by a small team. Domain logic lives in plain <code>src/lib/*</code> modules that take a database handle, so it is unit-testable and could later move behind a separate API without rewriting.</li>
   <li><b>Postgres.</b> The domain is relational: students, batches, sessions, marks, invoices. It needs transactions (sync conflicts, payment callbacks), row locks (<code>SELECT … FOR UPDATE</code>) and aggregate reporting for university, AICTE and NAAC. Any managed Postgres works.</li>
-  <li><b>PGlite locally and in tests.</b> The same Postgres engine compiled to WebAssembly. Reviewers run the app with no database install, and the 37 tests run against real Postgres semantics (unique indexes, row locks, sequences) rather than mocks. Production uses <code>DATABASE_URL</code> with node-postgres, through the same Drizzle schema and migrations.</li>
+  <li><b>PGlite locally and in tests.</b> The same Postgres engine compiled to WebAssembly. Reviewers run the app with no database install, and the 38 tests run against real Postgres semantics (unique indexes, row locks, sequences) rather than mocks. Production uses <code>DATABASE_URL</code> with node-postgres, through the same Drizzle schema and migrations.</li>
   <li><b>Offline through the platform, not a sync framework.</b> A small service worker caches pages and assets. IndexedDB holds the class pack, in-progress drafts and an outbox. The server is the source of truth and decides conflicts in one function (<code>lib/sync.ts</code>). That made the rules simple to explain to the client and to test. A CRDT or a replicated local database would be more machinery than "mark 60 students and send" needs.</li>
   <li><b>Security in layers.</b> Middleware blocks routes by role. Every server action and API call re-checks the role, and every query is scoped by the campus taken from the session, never from the request. Teacher ownership is checked per class.</li>
 </ul>
@@ -141,7 +141,7 @@ GET /api/faculty/pack  →  open class → all present by default        outbox.
 { output:"count", filters:{ yearOfStudy:2, attendance:{op:"lt", value:75, period:"this_month"} } }
    │ zod: whitelist of 9 filters, bounded values, unknown keys stripped, unknown programmes dropped
    ▼ compiled to parameterised Drizzle SELECTs + campus scope from the session  (no SQL from the model)
-Answer: 2 students · chips "Year 2" "Attendance below 75% this month" "Campus scope" · engine: rule parser</div>
+Answer: N students · chips "Year 2" "Attendance below 75% this month" "Campus scope" · engine: rule parser</div>
 <table>
   <tr><th style="width:30%">When it is wrong or unsure</th><th>Handling</th></tr>
   <tr><td>The model misreads the question</td><td>The filters are shown as chips next to the row count, so staff can check what actually ran. Every question and spec is logged.</td></tr>
@@ -159,7 +159,7 @@ Answer: 2 students · chips "Year 2" "Attendance below 75% this month" "Campus s
   <li><b>One layout pattern everywhere:</b> a page header (title, one line of context, at most two actions), then cards holding a table or list. A sidebar on desktop becomes a bottom tab bar on phones. Faculty see 4 menu items and the office sees 7.</li>
   <li><b>A restrained palette:</b> warm neutrals, one teal accent for actions and selection, and three status colours that only ever mean something: red for shortage or overdue, amber for watch or awaiting, green for done or locked. Red never decorates.</li>
   <li><b>Numbers first:</b> tabular figures, Indian digit grouping (₹30,04,000), attendance bars with a tick at 75%, so a shortage is visible before it is read.</li>
-  <li><b>Every state designed:</b> skeletons while loading, empty states that say what to do next, inline errors at the field, toasts for confirmations, and offline banners that explain what still works.</li>
+  <li><b>Every state designed:</b> skeletons while loading, an error card with retry if a page fails (the menu stays usable), empty states that say what to do next, inline errors at the field, toasts for confirmations, and offline banners that explain what still works.</li>
 </ul>
 <div class="shots phone">
   <figure><img src="img/m-today.png"><figcaption>Faculty home: today's classes and the last 2 days still open for correction, with sync state.</figcaption></figure>
@@ -203,19 +203,21 @@ Answer: 2 students · chips "Year 2" "Attendance below 75% this month" "Campus s
   <li><span class="tag">A8</span>Parental consent is captured on the admission form for every student; messages go only where consent is recorded. The Odia message templates need review by a native speaker before go-live.</li>
   <li><span class="tag">A9</span>"Office admin" covers the exam cell and accounts in this phase; finer roles come later. The timetable is a master (generating it is out of scope).</li>
   <li><span class="tag">A10</span>At-risk weights are hand-set (see 5.1). Gemini is the default model because it has a free tier for a pilot; the adapter is about 50 lines and can point at any provider.</li>
+  <li><span class="tag">A11</span>The core build asks for one campus and masters for one programme, but the sample data spans three programmes on two campuses (B.Tech CSE, B.Tech Mechanical, MBA). The working slice is the Engineering College with its two B.Tech programmes, so both engineering sample students sit in it. Farheen Ali (MBA) is seeded on a second, Management campus with its own office admin; it is not built out further, but it shows campus isolation. A third campus (Pharmacy) exists as a master record only.</li>
+  <li><span class="tag">A12</span>"Standard reports run automatically" is read as: the nightly job sends shortage alerts and fee reminders and runs the risk scan; reports (marks CSV, dues CSV, Tally XML) are generated on demand. Scheduled university, AICTE and NAAC reports are cut (section 10).</li>
 </ol>
 </div>
 
 <h2>9. Testing</h2>
-<p><b>37 automated tests</b> (<code>npm test</code>, about 7 s) run on a fresh in-memory Postgres seeded with demo data:</p>
+<p><b>38 automated tests</b> (<code>npm test</code>, about 7 s) run on a fresh in-memory Postgres seeded with demo data:</p>
 <ul>
   <li><b>Sync:</b> idempotent retry, correction, conflict, newer copy replaces, override, wrong teacher, holiday, future date, not on the timetable, the edit window judged on <code>markedAt</code>, office correction after the window, clock-skew clamp, foreign students ignored.</li>
   <li><b>Marks:</b> totals and scaling, validation, the role and state edit matrix, no submission with empty cells, lock, unlock reason required, the audit trail of every step, the university CSV format.</li>
   <li><b>Risk:</b> a healthy student is not flagged, Ankit's profile scores high with reasons, insufficient-data and single-signal cases, no duplicate tasks on rescan, dismissal suppression.</li>
-  <li><b>Assistant:</b> the brief's example question, combined filters, unknown questions, whitelist validation, campus isolation, write refusal, and the three sample students matching the brief exactly.</li>
-  <li><b>Fees:</b> balance and concession bounds, overpayment and duplicate-reference rejection, callback idempotency, double payment through two links, Tally export scoped to the campus.</li>
+  <li><b>Assistant:</b> the brief's example question, combined filters, unknown questions, whitelist validation, campus isolation (including a question about another campus's programme returning 0 rows rather than everyone), write refusal, and the three sample students matching the brief exactly.</li>
+  <li><b>Fees:</b> balance and concession bounds, overpayment and duplicate-reference rejection, callback idempotency with one audit entry per gateway outcome, double payment through two links, Tally export scoped to the campus.</li>
 </ul>
-<p>The tests caught a real bug: the rule parser read "20,000" as 20. Beyond the suite, a production build was checked in a headless browser on a 390 px phone: a reload with the network cut still loads the class list, a class marked offline syncs on reconnect, and faculty get 403 from admin APIs.</p>
+<p>The tests caught a real bug: the rule parser read "20,000" as 20. A final review against the brief caught two more, both now fixed and covered by tests: asking an Engineering admin's assistant about MBA students returned every Engineering student instead of none, and mock-gateway payments were not written to the audit log. The suite seeds data relative to today, so it was run with the clock set to each of the next 21 days (Sundays and holidays included) to make sure it passes whenever a reviewer runs it. Beyond the suite, a production build was checked in a headless browser on a 390 px phone: a reload with the network cut still loads the class list, a class marked offline syncs on reconnect, and faculty get 403 from admin APIs.</p>
 
 <h2>10. What I cut, and what comes next</h2>
 <div class="two">
@@ -225,7 +227,7 @@ Answer: 2 students · chips "Year 2" "Attendance below 75% this month" "Campus s
   <li>Admissions: applicant import, document checklist, roll-number allocation. The <code>students</code> table is ready for it.</li>
   <li>Student and parent logins (parents get mocked SMS only), staff leave, the trust-level dashboard across campuses.</li>
   <li>Real SMS or WhatsApp and payment gateways. Both are mocked behind small functions.</li>
-  <li>University, AICTE and NAAC report formats beyond the internal-marks CSV.</li>
+  <li>University, AICTE and NAAC report formats beyond the internal-marks CSV, and scheduling standard reports (they are generated on demand today).</li>
   <li>Bank-statement reconciliation (the brief's "10 days to 1"). Unique references and Tally export prepare for it.</li>
   <li>Odia interface text (only parent messages are in Odia, as the brief asks).</li>
   <li>Distributed rate limiting, a Content Security Policy, and a password reset flow.</li>
@@ -239,7 +241,7 @@ Answer: 2 students · chips "Year 2" "Attendance below 75% this month" "Campus s
   <li>Bank statement CSV matching against references for one-day reconciliation.</li>
   <li>Results-day readiness for 7,800 concurrent students: static, per-student results pages behind a CDN, a read replica, load testing at 3× peak. The core is stateless, so it scales horizontally.</li>
   <li>Recalibrate the risk weights with the first semester's outcomes and dismissal notes; consider logistic regression once labels exist.</li>
-  <li>Expand to the management and pharmacy campuses (the data model and campus scoping already support it; the demo seeds two campuses), then the trust dashboard and NAAC reports.</li>
+  <li>Expand to the management and pharmacy campuses (the data model and campus scoping already support it; the demo already seeds the Management campus with MBA students and a Pharmacy campus record), then the trust dashboard and NAAC reports.</li>
 </ol>
 </div>
 </div>
