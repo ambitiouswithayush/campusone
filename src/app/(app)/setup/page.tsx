@@ -323,7 +323,7 @@ async function AuditTab({ campusId }: { campusId: number }) {
               <div className="flex items-baseline gap-2">
                 <span className="font-medium">{a.entity.replace(/_/g, " ")} #{/^[0-9a-f]{8}-/.test(a.entityId) ? a.entityId.slice(0, 8) : a.entityId}</span>
                 <span className="text-ink-2">{a.action.replace(/_/g, " ")}</span>
-                <span className="ml-auto shrink-0 text-xs text-ink-3">{a.createdAt.toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                <span className="ml-auto shrink-0 text-xs text-ink-3">{a.createdAt.toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
               </div>
               <p className="text-xs text-ink-3">{actor ?? "System"}{a.reason ? ` · “${a.reason}”` : ""}</p>
             </li>

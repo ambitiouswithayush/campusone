@@ -165,7 +165,7 @@ export function TodayApp() {
     <div className="animate-fade-up">
       <PageHeader
         title="Attendance"
-        subtitle={pack ? `${pack.facultyName} · ${new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}` : undefined}
+        subtitle={pack ? `${pack.facultyName} · ${new Date().toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", weekday: "long", day: "numeric", month: "long" })}` : undefined}
         actions={<SyncChip online={online} waiting={waiting} syncing={syncing || refreshing} onSync={() => (online ? (sync(), refresh()) : null)} lastUpdated={pack?.downloadedAt} />}
       />
 
@@ -194,7 +194,7 @@ export function TodayApp() {
 
       {pack && staleDay && !online && (
         <Notice tone="warn" className="mb-4">
-          Class list last downloaded {new Date(pack.downloadedAt).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })}. Today&apos;s classes come from your saved timetable.
+          Class list last downloaded {new Date(pack.downloadedAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", weekday: "short", day: "numeric", month: "short" })}. Today&apos;s classes come from your saved timetable.
         </Notice>
       )}
 
@@ -279,7 +279,7 @@ function SyncChip({ online, waiting, syncing, onSync, lastUpdated }: { online: b
     );
   }
   return (
-    <button onClick={onSync} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-xs text-ink-2 hover:bg-canvas" title={lastUpdated ? `Updated ${new Date(lastUpdated).toLocaleTimeString("en-IN")}` : undefined}>
+    <button onClick={onSync} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-xs text-ink-2 hover:bg-canvas" title={lastUpdated ? `Updated ${new Date(lastUpdated).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" })}` : undefined}>
       {syncing ? <Loader2 size={13} className="animate-spin" /> : waiting ? <RefreshCw size={13} /> : <Check size={13} className="text-ok" />}
       {syncing ? "Syncing…" : waiting ? `${waiting} waiting · Sync now` : "All synced"}
     </button>

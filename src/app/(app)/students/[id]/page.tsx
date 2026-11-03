@@ -117,7 +117,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
         <Notice tone={s.parentConsentAt ? "neutral" : "warn"} className="mb-4">
           Minor (age {age}).{" "}
           {s.parentConsentAt
-            ? `Parental consent recorded ${s.parentConsentAt.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} (DPDP Act 2023).`
+            ? `Parental consent recorded ${s.parentConsentAt.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric" })} (DPDP Act 2023).`
             : "Parental consent pending — no messages are sent to the parent until it is recorded (DPDP Act 2023)."}
         </Notice>
       )}
@@ -131,7 +131,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
         />
         <Stat label="Internal average" value={avgInternal === null ? "—" : `${avgInternal}/40`} hint={`${internals.length} of ${perSubject.length} subjects graded`} />
         {isAdmin ? (
-          <Stat label="Fee due" value={due ? inr(due) : "Nil"} tone={due ? "warn" : "ok"} hint={invoices[0] ? `Due ${new Date(invoices[0].dueDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}` : undefined} />
+          <Stat label="Fee due" value={due ? inr(due) : "Nil"} tone={due ? "warn" : "ok"} hint={invoices[0] ? `Due ${new Date(invoices[0].dueDate).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short" })}` : undefined} />
         ) : (
           <Stat label="Classes held" value={held} hint="All subjects, this semester" />
         )}
@@ -191,7 +191,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
                 {pays.map((p) => (
                   <li key={p.id} className="flex items-center justify-between px-5 py-2.5 text-sm">
                     <Link href={`/receipt/${p.id}`} className="text-accent hover:underline tabular">{p.receiptNo}</Link>
-                    <span className="text-xs text-ink-3">{p.paidAt?.toLocaleDateString("en-IN", { day: "numeric", month: "short" })} · {p.mode === "bank_counter" ? "Bank" : "Online (test)"}</span>
+                    <span className="text-xs text-ink-3">{p.paidAt?.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short" })} · {p.mode === "bank_counter" ? "Bank" : "Online (test)"}</span>
                     <span className="tabular">{inr(p.amount)}</span>
                   </li>
                 ))}
@@ -209,7 +209,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
                     <div className="mb-1 flex items-center gap-2">
                       <Badge tone={m.kind === "shortage" ? "danger" : "warn"}>{m.kind === "shortage" ? "Shortage alert" : "Fee reminder"}</Badge>
                       {m.status === "skipped_no_consent" ? <Badge>Not sent · no consent</Badge> : <Badge tone="accent">Sent (mock SMS)</Badge>}
-                      <span className="ml-auto text-xs text-ink-3">{m.createdAt.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>
+                      <span className="ml-auto text-xs text-ink-3">{m.createdAt.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short" })}</span>
                     </div>
                     <p className="text-sm text-ink-2" lang={m.lang}>{m.body}</p>
                   </li>

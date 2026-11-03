@@ -136,7 +136,7 @@ export function MarksGrid(props: {
 
       {status === "locked" && (
         <Notice tone="ok" className="mb-4">
-          Locked after moderation{props.lockedAt ? ` on ${new Date(props.lockedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}` : ""}. No one can change these marks without unlocking with a recorded reason.
+          Locked after moderation{props.lockedAt ? ` on ${new Date(props.lockedAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short" })}` : ""}. No one can change these marks without unlocking with a recorded reason.
         </Notice>
       )}
       {status === "submitted" && role === "faculty" && <Notice className="mb-4">Submitted. The exam cell is moderating — they can return it to you if changes are needed.</Notice>}
@@ -251,7 +251,7 @@ export function MarksGrid(props: {
               <li key={h.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 px-5 py-2.5 text-sm">
                 <span className="font-medium">{describe(h)}</span>
                 <span className="text-ink-3">{h.actor}</span>
-                <span className="ml-auto text-xs text-ink-3 tabular">{new Date(h.at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                <span className="ml-auto text-xs text-ink-3 tabular">{new Date(h.at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
                 {h.reason && <p className="w-full text-xs text-ink-2">Reason: {h.reason}</p>}
               </li>
             ))}

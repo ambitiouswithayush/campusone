@@ -127,7 +127,7 @@ export function TakeClass({
         <Notice tone="danger" className="mb-4">
           <p className="font-medium">{outbox.message}</p>
           <p className="mt-1">
-            Server copy: {outbox.server.absentStudentIds.length} absent, marked {new Date(outbox.server.markedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}. Your copy: {absent.size} absent.
+            Server copy: {outbox.server.absentStudentIds.length} absent, marked {new Date(outbox.server.markedAt).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" })}. Your copy: {absent.size} absent.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Button size="sm" onClick={keepServer}>Keep server copy</Button>
@@ -146,7 +146,7 @@ export function TakeClass({
       {outbox?.status === "pending" && <Notice tone="accent" className="mb-4">Saved on this phone — it will sync automatically when there&apos;s signal.</Notice>}
       {!outbox && cls.session && !readOnly && (
         <Notice className="mb-4">
-          Marked by {cls.session.takenBy} at {new Date(cls.session.markedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}. Changes update that record and are logged.
+          Marked by {cls.session.takenBy} at {new Date(cls.session.markedAt).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" })}. Changes update that record and are logged.
         </Notice>
       )}
       {readOnly && <Notice tone="warn" className="mb-4">The 48-hour correction window has closed. The office can correct this record if needed.</Notice>}
