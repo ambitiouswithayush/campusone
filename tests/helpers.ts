@@ -24,9 +24,12 @@ export async function sessionFor(db: DB, email: string): Promise<SessionUser> {
 }
 
 /** A working day a few days back (not Sunday, not a holiday). */
-export function pastWorkingDay(back = 3): string {
+export async function pastWorkingDay(db: DB, back = 3): Promise<string> {
+  const holidays = new Set(
+    (await db.select({ date: schema.calendarEvents.date }).from(schema.calendarEvents).where(eq(schema.calendarEvents.kind, "holiday"))).map((h) => h.date),
+  );
   let d = addDays(isoDateIST(), -back);
-  while (dayOfWeek(d) === 7) d = addDays(d, -1);
+  while (dayOfWeek(d) === 7 || holidays.has(d)) d = addDays(d, -1);
   return d;
 }
 

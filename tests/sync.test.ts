@@ -40,7 +40,7 @@ async function payload(date: string, absentCount = 2, over: Partial<SessionPaylo
 
 describe("offline attendance sync", () => {
   it("creates a session, and a resend of the same UUID is a harmless duplicate", async () => {
-    const { p, now } = await payload(pastWorkingDay(3));
+    const { p, now } = await payload(await pastWorkingDay(db, 3));
     const first = await syncSessions(db, priya, [p], now);
     expect(first.results[0].status).toBe("created");
     const retry = await syncSessions(db, priya, [p], now);
@@ -51,7 +51,7 @@ describe("offline attendance sync", () => {
   });
 
   it("treats changed marks under the same UUID as a logged correction", async () => {
-    const { p, now } = await payload(pastWorkingDay(3));
+    const { p, now } = await payload(await pastWorkingDay(db, 3));
     await syncSessions(db, priya, [p], now);
     const corrected = { ...p, records: p.records.map((r, i) => ({ ...r, present: i !== 5 })) };
     const r = await syncSessions(db, priya, [corrected], now);
@@ -63,7 +63,7 @@ describe("offline attendance sync", () => {
   });
 
   it("returns a conflict when an older copy from another device arrives late", async () => {
-    const { p, now } = await payload(pastWorkingDay(3));
+    const { p, now } = await payload(await pastWorkingDay(db, 3));
     await syncSessions(db, priya, [p], now);
     const older = { ...p, id: randomUUID(), markedAt: new Date(new Date(p.markedAt).getTime() - 5 * 60_000).toISOString(), records: p.records.map((r) => ({ ...r, present: true })) };
     const r = await syncSessions(db, priya, [older], now);
@@ -73,7 +73,7 @@ describe("offline attendance sync", () => {
   });
 
   it("lets a newer copy, or an explicit override, replace the stored one and keeps the old in the audit log", async () => {
-    const { p, now } = await payload(pastWorkingDay(3));
+    const { p, now } = await payload(await pastWorkingDay(db, 3));
     await syncSessions(db, priya, [p], now);
     const newer = { ...p, id: randomUUID(), markedAt: new Date(new Date(p.markedAt).getTime() + 60_000).toISOString() };
     expect((await syncSessions(db, priya, [newer], now)).results[0].status).toBe("replaced");
@@ -84,14 +84,14 @@ describe("offline attendance sync", () => {
   });
 
   it("refuses classes the teacher does not teach", async () => {
-    const { p, now } = await payload(pastWorkingDay(3));
+    const { p, now } = await payload(await pastWorkingDay(db, 3));
     const r = await syncSessions(db, rakesh, [p], now);
     expect(r.results[0].status).toBe("rejected");
     expect(r.results[0].message).toMatch(/another teacher/);
   });
 
   it("refuses future dates, holidays and slots not on the timetable", async () => {
-    const { p, now } = await payload(pastWorkingDay(3));
+    const { p, now } = await payload(await pastWorkingDay(db, 3));
     expect((await syncSessions(db, priya, [{ ...p, date: addDays(isoDateIST(now), 7) }], now)).results[0].status).toBe("rejected");
     expect((await syncSessions(db, priya, [{ ...p, period: 7 }], now)).results[0].message).toMatch(/timetable|started/);
     await db.insert(calendarEvents).values({ campusId: priya.campusId, date: p.date, kind: "holiday", title: "Test holiday" });
@@ -101,11 +101,11 @@ describe("offline attendance sync", () => {
   });
 
   it("judges the 48-hour window on when the class was marked, not when the phone synced", async () => {
-    const { p } = await payload(pastWorkingDay(3));
+    const { p } = await payload(await pastWorkingDay(db, 3));
     const lateSync = new Date(new Date(p.markedAt).getTime() + 5 * 86400_000);
     expect((await syncSessions(db, priya, [p], lateSync)).results[0].status).toBe("created");
 
-    const { p: stale } = await payload(pastWorkingDay(6));
+    const { p: stale } = await payload(await pastWorkingDay(db, 6));
     const markedLate = new Date(new Date(stale.markedAt).getTime() + 3 * 86400_000);
     const r = await syncSessions(db, priya, [{ ...stale, markedAt: markedLate.toISOString() }], new Date(markedLate.getTime() + 1000));
     expect(r.results[0].status).toBe("rejected");
@@ -116,7 +116,7 @@ describe("offline attendance sync", () => {
   });
 
   it("clamps a phone clock that runs ahead and ignores students from other batches", async () => {
-    const { p, now } = await payload(pastWorkingDay(3));
+    const { p, now } = await payload(await pastWorkingDay(db, 3));
     const ahead = { ...p, markedAt: new Date(now.getTime() + 3 * 3600_000).toISOString(), records: [...p.records, { studentId: 99999, present: true }] };
     const r = await syncSessions(db, priya, [ahead], now);
     expect(r.results[0].status).toBe("created");
